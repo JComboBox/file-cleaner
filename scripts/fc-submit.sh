@@ -22,6 +22,7 @@ while (( $# )); do
 done
 (( $# == 1 )) || { echo "usage: $0 [--dry-run] [--no-mr] REPO_DIR" >&2; exit 64; }
 repo="$1"
+require_repo_dir "$repo"
 
 branch="$(git -C "$repo" rev-parse --abbrev-ref HEAD)"
 base="$(default_branch "$repo")"

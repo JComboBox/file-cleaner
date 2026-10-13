@@ -16,6 +16,18 @@ fc_token() {
   printf '%s' "${FC_GIT_TOKEN:-${GITHUB_TOKEN:-${GITLAB_TOKEN:-}}}"
 }
 
+# require_repo_dir DIR — exit unless DIR is the top level of a git work tree.
+# Guards against an empty or wrong path silently resolving to whatever
+# repository the caller happens to be standing in.
+require_repo_dir() {
+  local dir="$1" top
+  [[ -n "$dir" && -d "$dir" ]] || die "not a directory: '${dir}'"
+  top="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null)" \
+    || die "not a git repository: $dir"
+  [[ "$(cd "$dir" && pwd -P)" == "$(cd "$top" && pwd -P)" ]] \
+    || die "not the top level of a git repository: $dir (top level is $top)"
+}
+
 # git_login — configure non-interactive HTTPS auth for subsequent git calls.
 git_login() {
   export GIT_TERMINAL_PROMPT=0

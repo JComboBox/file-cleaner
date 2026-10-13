@@ -6,11 +6,12 @@
 # Writes one status line per file (see fc-clean-file.sh) to stdout and a
 # summary to stderr. Exit status: 0 on success, 1 if any file errored.
 set -euo pipefail
-# shellcheck source=lib/common.sh
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+# shellcheck source=lib/git.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/git.sh"
 load_config
 
 (( $# == 1 )) || { echo "usage: $0 REPO_DIR" >&2; exit 64; }
+require_repo_dir "$1"
 repo="$(cd "$1" && pwd)"
 
 # Build a grep filter for excluded top-level or nested directories.

@@ -67,16 +67,23 @@ if [[ -n "$repos_file" ]]; then
 fi
 (( ${#repos[@]} )) || { usage >&2; exit 64; }
 
+# process_repo URL — run every step for one repository. Each step is checked
+# explicitly: `set -e` is ignored inside a function or subshell called from
+# an `if`, so relying on it would let a failed clone fall through and run the
+# remaining steps against the current directory.
+process_repo() {
+  local url="$1" dir
+  dir="$("$FC_ROOT/scripts/fc-clone.sh" "$url")" || return 1
+  [[ -n "$dir" ]] || { log_error "clone returned no directory for $url"; return 1; }
+  "$FC_ROOT/scripts/fc-branch.sh" "$dir" || return 1
+  "$FC_ROOT/scripts/fc-clean.sh" "$dir" || return 1
+  "$FC_ROOT/scripts/fc-submit.sh" "${submit_args[@]+"${submit_args[@]}"}" "$dir" || return 1
+}
+
 failed=()
 for url in "${repos[@]}"; do
   log_info "=== $url"
-  if (
-    set -euo pipefail
-    dir="$("$FC_ROOT/scripts/fc-clone.sh" "$url")"
-    "$FC_ROOT/scripts/fc-branch.sh" "$dir"
-    "$FC_ROOT/scripts/fc-clean.sh" "$dir"
-    "$FC_ROOT/scripts/fc-submit.sh" "${submit_args[@]+"${submit_args[@]}"}" "$dir"
-  ); then
+  if process_repo "$url"; then
     log_info "done: $url"
   else
     log_error "failed: $url"

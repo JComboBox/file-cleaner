@@ -100,11 +100,32 @@ else
   bad "dry run: run succeeds" "$out"
 fi
 
-if out="$("$ROOT/bin/file-cleaner" -n -w "$TMP/work" "$TMP/does-not-exist.git" 2>&1)"; then
+# A failed clone must stop that repo's pipeline. Run from inside another git
+# repository: the later steps must not fall back to operating on it.
+bystander="$TMP/bystander"
+git init --quiet --initial-branch=main "$bystander"
+printf '# Copyright 2020 Example Corp.\necho hi\n' > "$bystander/keep.sh"
+git -C "$bystander" add -A
+git -C "$bystander" -c user.name=t -c user.email=t@t commit --quiet -m seed
+if out="$(cd "$bystander" && "$ROOT/bin/file-cleaner" -n -w "$TMP/work" "$TMP/does-not-exist.git" 2>&1)"; then
   bad "missing repo: exits non-zero" "$out"
+elif [[ "$(git -C "$bystander" branch --format='%(refname:short)')" != main ]] \
+  || ! grep -q Copyright "$bystander/keep.sh" \
+  || [[ "$(git -C "$bystander" rev-list --count HEAD)" != 1 ]]; then
+  bad "missing repo: leaves the current directory's repo untouched" \
+    "$(git -C "$bystander" branch; git -C "$bystander" log --oneline)"
 else
-  ok "missing repo: exits non-zero"
+  ok "missing repo: exits non-zero, current repo untouched"
 fi
+
+for script in fc-branch.sh fc-clean.sh "fc-submit.sh --dry-run"; do
+  # shellcheck disable=SC2086  # word-splitting $script into name + flag is intended
+  if (cd "$bystander" && "$ROOT"/scripts/$script "" >/dev/null 2>&1); then
+    bad "${script%% *}: rejects an empty repo dir"
+  else
+    ok "${script%% *}: rejects an empty repo dir"
+  fi
+done
 
 # Refuse to commit on the default branch.
 remote="$(make_remote guard)"
