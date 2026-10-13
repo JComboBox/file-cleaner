@@ -1,0 +1,4 @@
+config/file-cleaner.conf
+config/repos.txt
+.work/
+tests/.tmp/

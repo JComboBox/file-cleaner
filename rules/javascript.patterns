@@ -1,0 +1,4 @@
+# Lines matching any ERE below are deleted from javascript files.
+# Examples (uncomment to enable):
+# ^[[:space:]]*console\.(log|debug)\(.*\);?[[:space:]]*$
+# ^[[:space:]]*debugger;?[[:space:]]*$

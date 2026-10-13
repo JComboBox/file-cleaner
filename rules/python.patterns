@@ -1,0 +1,4 @@
+# Lines matching any ERE below are deleted from python files.
+# Examples (uncomment to enable):
+# ^[[:space:]]*import pdb; *pdb\.set_trace\(\)[[:space:]]*$
+# ^[[:space:]]*breakpoint\(\)[[:space:]]*$
