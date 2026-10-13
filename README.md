@@ -106,3 +106,18 @@ xmllint, PyYAML or yamllint.
 pip install shellcheck-py
 make check      # shellcheck + tests (offline; uses local repos and a mock API)
 ```
+
+## Branch protection
+
+`main` only accepts changes through pull requests that pass the
+`regression-tests` CI job (`make check`), with the branch up to date with
+`main`. Force-pushes and branch deletion are blocked. The rules are kept in
+`.github/rulesets/main.json`. To apply or update them, a repository admin runs:
+
+```sh
+gh api -X POST repos/JComboBox/file-cleaner/rulesets --input .github/rulesets/main.json
+```
+
+Or go to **Settings → Rules → Rulesets → New ruleset → Import a ruleset**
+and choose the file. (To update an existing ruleset, use
+`-X PUT repos/JComboBox/file-cleaner/rulesets/<id>`.)

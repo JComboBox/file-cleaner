@@ -89,6 +89,11 @@ bin/file-cleaner -n -w .work /path/to/local/repo.git   # -n = dry run
   machine-readable output (status lines, paths, MR URLs).
 - All tunables are `FC_*` variables with defaults in `load_config`; document
   new ones in `config/file-cleaner.conf.example` and README.md.
+- `set -e` is ignored inside anything run as an `if`/`&&`/`||` condition
+  (including functions and subshells). Check each step's status explicitly
+  there, as `process_repo` in `bin/file-cleaner` does.
+- Scripts that take a repo directory must call `require_repo_dir` first, so
+  an empty path never falls back to the current directory's repository.
 - Quote every expansion. Prefer `[[ ]]`, `$(...)`, arrays for argument lists.
 - awk must stay POSIX (mawk is the default on Debian/Ubuntu): no `gensub`,
   `IGNORECASE`, or `--re-interval`. Pass regexes via `ENVIRON`, not `-v`.
@@ -127,6 +132,16 @@ case in `tests/run.sh` using the mock server.
   that must be kept (e.g. a non-license comment, a JSDoc block).
 - End-to-end tests in `tests/run.sh` build throwaway bare repos under
   `tests/.tmp/`; follow the `make_remote` pattern.
+
+## CI and branch protection
+
+- `.github/workflows/ci.yml` runs `make check` as the `regression-tests`
+  job on every pull request and on pushes to `main`.
+- `main` is protected by `.github/rulesets/main.json`: changes land only
+  through a pull request whose `regression-tests` check passed on a branch
+  that is up to date with `main`; force-pushes and deletion are blocked.
+- Renaming the CI job breaks the required check — update the ruleset in the
+  same PR and re-apply it (see README.md).
 
 ## Commits and pull requests
 
