@@ -13,7 +13,75 @@ For each repository, `bin/file-cleaner`:
 5. validates each changed file — **files that fail validation are reverted**
 6. commits, pushes the branch, and opens a GitHub PR or GitLab MR
 
-AI agents: see [AGENTS.md](AGENTS.md).
+To set it up on a machine, see [Installation](#installation). AI agents:
+see [AGENTS.md](AGENTS.md).
+
+## Installation
+
+file-cleaner runs straight from a clone of this repository; there is
+nothing to build or install. To use it on another machine:
+
+**1. Install the prerequisites**
+
+```sh
+# Debian / Ubuntu
+sudo apt-get install -y git jq curl python3
+```
+
+file-cleaner is developed and tested on Linux and needs bash 4.4 or newer.
+macOS is untested: its built-in bash is 3.2 (too old) and it may lack
+GNU tools the scripts use, such as `truncate`.
+
+Optional, for validating more file types: `node`, `tsc`, `gofmt`,
+`xmllint` (`libxml2-utils`), PyYAML or `yamllint`. See
+[Supported types](#supported-types).
+
+**2. Clone the repository**
+
+```sh
+git clone https://github.com/JComboBox/file-cleaner.git
+# or over SSH
+git clone git@github.com:JComboBox/file-cleaner.git
+cd file-cleaner
+```
+
+If the repository is private, the machine needs read access to it first:
+a GitHub login (e.g. `gh auth login`), an SSH key added to your account,
+or a personal access token used when git prompts for a password. This
+access is only for downloading the tool. The token file-cleaner uses
+on the repositories it cleans is separate (`FC_GIT_TOKEN`; see
+[Configuration](#configuration)).
+
+**3. Check it works**
+
+```sh
+bin/file-cleaner -h      # prints usage
+make test                # optional: runs the offline test suite
+```
+
+The scripts keep their executable bit through git, so no `chmod` is
+needed.
+
+**4. (Optional) Run it from anywhere**
+
+Add the clone's `bin/` directory to your `PATH`, e.g. in `~/.bashrc`:
+
+```sh
+export PATH="$HOME/file-cleaner/bin:$PATH"   # adjust to where you cloned it
+```
+
+Do not symlink `bin/file-cleaner` into another directory: it finds its
+`lib/` and `scripts/` relative to its own location, so a symlink breaks
+it. Keep the clone in one piece and call the script in place.
+
+**Updating**
+
+```sh
+git -C ~/file-cleaner pull
+```
+
+For repeatable runs across machines, check out the same commit or tag
+everywhere (`git checkout <tag-or-sha>`) instead of tracking `main`.
 
 ## Quick start
 
