@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# file-cleaner — clone repositories, strip headers/snippets, validate, and
+# open merge requests. Runs the scripts/ steps in order for each repository.
+#
+# Usage: bin/file-cleaner [options] REPO_URL...
+#        bin/file-cleaner [options] -f REPOS_FILE
+#
+# Options:
+#   -f FILE      read repository URLs from FILE (one per line, # comments ok)
+#   -b BRANCH    work branch name            (FC_BRANCH)
+#   -m MESSAGE   commit message / MR title   (FC_COMMIT_MESSAGE)
+#   -t TYPES     comma-separated types only  (FC_TYPES), e.g. shell,python
+#   -w DIR       working directory for clones (FC_WORKDIR)
+#   -c FILE      config file                 (FC_CONFIG)
+#   -n           dry run: clean and commit locally, never push
+#   -N           push the branch but do not open a merge request
+#   -v           verbose (debug logging)
+#   -h           show this help
+#
+# Exit status: 0 if every repository succeeded, 1 otherwise.
+set -euo pipefail
+FC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export FC_ROOT
+# shellcheck source=lib/common.sh
+source "$FC_ROOT/lib/common.sh"
+
+usage() { sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; }
+
+repos_file="" submit_args=()
+declare -a overrides=()
+while getopts "f:b:m:t:w:c:nNvh" opt; do
+  case "$opt" in
+    f) repos_file="$OPTARG" ;;
+    b) overrides+=("FC_BRANCH=$OPTARG") ;;
+    m) overrides+=("FC_COMMIT_MESSAGE=$OPTARG") ;;
+    t) overrides+=("FC_TYPES=$OPTARG") ;;
+    w) overrides+=("FC_WORKDIR=$OPTARG") ;;
+    c) export FC_CONFIG="$OPTARG" ;;
+    n) submit_args+=(--dry-run) ;;
+    N) submit_args+=(--no-mr) ;;
+    v) export FC_LOG_LEVEL=debug ;;
+    h) usage; exit 0 ;;
+    *) usage >&2; exit 64 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# Config first, then command-line overrides win.
+load_config
+for kv in "${overrides[@]+"${overrides[@]}"}"; do
+  export "${kv%%=*}=${kv#*=}"
+done
+# -m sets the MR title too.
+for kv in "${overrides[@]+"${overrides[@]}"}"; do
+  [[ "$kv" == FC_COMMIT_MESSAGE=* ]] && export FC_MR_TITLE="$FC_COMMIT_MESSAGE"
+done
+
+require_cmd git awk jq curl
+
+repos=("$@")
+if [[ -n "$repos_file" ]]; then
+  [[ -f "$repos_file" ]] || die "repos file not found: $repos_file"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"; line="${line//[[:space:]]/}"
+    [[ -n "$line" ]] && repos+=("$line")
+  done < "$repos_file"
+fi
+(( ${#repos[@]} )) || { usage >&2; exit 64; }
+
+failed=()
+for url in "${repos[@]}"; do
+  log_info "=== $url"
+  if (
+    set -euo pipefail
+    dir="$("$FC_ROOT/scripts/fc-clone.sh" "$url")"
+    "$FC_ROOT/scripts/fc-branch.sh" "$dir"
+    "$FC_ROOT/scripts/fc-clean.sh" "$dir"
+    "$FC_ROOT/scripts/fc-submit.sh" "${submit_args[@]+"${submit_args[@]}"}" "$dir"
+  ); then
+    log_info "done: $url"
+  else
+    log_error "failed: $url"
+    failed+=("$url")
+  fi
+done
+
+if (( ${#failed[@]} )); then
+  log_error "${#failed[@]} of ${#repos[@]} repositories failed: ${failed[*]}"
+  exit 1
+fi
+log_info "all ${#repos[@]} repositories processed"

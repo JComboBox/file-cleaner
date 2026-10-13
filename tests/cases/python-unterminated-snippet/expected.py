@@ -1,0 +1,3 @@
+x = 1
+# FILE-CLEANER: BEGIN-REMOVE
+y = 2
